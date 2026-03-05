@@ -3,34 +3,23 @@ package model
 
 import (
 	"strings"
-	"sync"
 	"time"
-
-	"github.com/google/uuid"
 )
+
+var LoggerCtxName = "logger"
 
 type CustomTime struct {
 	time.Time
 }
 
 type Event struct {
-	EID       uuid.UUID   `json:"event_id,omitempty"` // id задачи/события
-	Created   time.Time   `json:"-"`                  // дата создания задачи/события в UTC, для внутреннего использования
-	Updated   time.Time   `json:"-"`                  // дата обновления события/задачи пользователем в UTC, для внутреннего использования
-	Scheduled *CustomTime `json:"date,omitempty"`     // дата выполнения/наступления задачи/события
-	Task      string      `json:"event,omitempty"`    // сам текст события/задачи
-}
-
-type UserID uint // ID пользователя, создавшего событие
-
-type Combined struct {
-	Event
-	UserID `json:"user_id"`
-}
-
-type CalendArray struct {
-	EventMap map[UserID][]*Event
-	sync.RWMutex
+	EID         string      `json:"event_id"`                             // id задачи/события
+	UID         uint        `json:"user_id,omitempty" binding:"required"` // id создателя задачи
+	Created     time.Time   `json:"created"`                              // дата создания задачи/события в UTC, для внутреннего использования
+	Updated     time.Time   `json:"updated"`                              // дата обновления события/задачи пользователем в UTC, для внутреннего использования
+	Scheduled   *CustomTime `json:"date"`                                 // дата выполнения/наступления задачи/события
+	Description string      `json:"event"`                                // сам текст события/задачи
+	IsDone      bool        `json:"is_done"`                              // флаг "отправленности"/выполненности задачи/события
 }
 
 func (ct *CustomTime) UnmarshalJSON(b []byte) error {
@@ -43,10 +32,14 @@ func (ct *CustomTime) UnmarshalJSON(b []byte) error {
 	if err != nil {
 		return err
 	}
-	ct.Time = t
+	ct.Time = t.UTC()
 	return nil
 }
 
 func (ct *CustomTime) MarshalJSON() ([]byte, error) {
 	return []byte(`"` + ct.Time.Format("2006-01-02") + `"`), nil
+}
+
+type EventRecord struct {
+	Event *Event
 }

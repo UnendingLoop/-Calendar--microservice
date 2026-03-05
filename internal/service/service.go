@@ -2,131 +2,109 @@
 package service
 
 import (
-	"errors"
-	"fmt"
 	"time"
 
-	"calendar/internal/repository"
-	"calendar/model"
+	"github.com/UnendingLoop/-Calendar--microservice/internal/model"
 
 	"github.com/google/uuid"
 )
 
-type EventService interface {
-	CreateEvent(uid model.UserID, newEvent model.Event) (*model.Event, error)
-	UpdateEvent(uid model.UserID, newEvent model.Event) (*model.Event, error)
-	DeleteEvent(uid model.UserID, eid uuid.UUID) (bool, error)
-	GetDayEvents(uid model.UserID, start string) ([]model.Event, error)
-	GetWeekEvents(uid model.UserID, start string) ([]model.Event, error)
-	GetMonthEvents(uid model.UserID, start string) ([]model.Event, error)
+type eventRepository interface {
+	CreateEvent(event model.Event)
+	UpdateEvent(uid uint, event model.Event) *model.Event
+	DeleteEvent(uid uint, eid string) bool
+	GetPeriodEvents(uid uint, start, end time.Time) []model.Event
 }
 
-type eventService struct {
-	Repo repository.EventRepository
+type EventService struct {
+	er eventRepository
 }
 
-var (
-	ErrUserIDNotSpecified  = errors.New("отсутствует ID пользователя")
-	ErrUserIDNotFound      = errors.New("указанный ID пользователя не найден")
-	ErrEventIDNotSpecified = errors.New("отсутствует ID события")
-	ErrNothingToDelete     = errors.New("отсутствуют ID пользователя и события для удаления")
-	ErrEventNotFound       = errors.New("указанное по ID событие для указанного пользователя не найдено")
-	ErrDateNotSpecified    = errors.New("отсутствует дата для события")
-	ErrEventNotSpecified   = errors.New("отсутствует описание события")
-	ErrNothingToUpdate     = errors.New("отсутствуют новые дата и описание для обновления события")
-	ErrNothingToCreate     = errors.New("отсутствуют все данные для создания события")
-)
-
-func NewEventService(repo repository.EventRepository) EventService {
-	return &eventService{Repo: repo}
+func NewEventService(repo eventRepository) *EventService {
+	return &EventService{er: repo}
 }
 
-func (es *eventService) CreateEvent(uid model.UserID, newEvent model.Event) (*model.Event, error) {
+func (es *EventService) CreateEvent(newEvent model.Event) (*model.Event, error) {
 	switch {
-	case uid == 0 && newEvent.Scheduled == nil && newEvent.Task == "":
-		return nil, ErrNothingToCreate
-	case uid == 0:
-		return nil, ErrUserIDNotSpecified
+	case newEvent.UID == 0 && newEvent.Scheduled == nil && newEvent.Description == "":
+		return nil, model.ErrNothingToCreate
+	case newEvent.UID == 0:
+		return nil, model.ErrUserIDNotSpecified
 	case newEvent.Scheduled == nil:
-		return nil, ErrDateNotSpecified
-	case newEvent.Task == "":
-		return nil, ErrEventNotSpecified
+		return nil, model.ErrDateNotSpecified
+	case newEvent.Description == "":
+		return nil, model.ErrEventNotSpecified
 	}
 
-	newEvent.EID = uuid.New()
+	newEvent.EID = uuid.New().String()
 	newEvent.Created = time.Now().UTC()
-	es.Repo.CreateEvent(uid, newEvent)
+	es.er.CreateEvent(newEvent)
 
 	return &newEvent, nil
 }
 
-func (es *eventService) UpdateEvent(uid model.UserID, newEvent model.Event) (*model.Event, error) {
+func (es *EventService) UpdateEvent(updatedEvent model.Event) (*model.Event, error) {
 	switch {
-	case uid == 0:
-		return nil, ErrUserIDNotSpecified
-	case newEvent.EID.String() == "":
-		return nil, ErrEventIDNotSpecified
-	case newEvent.Scheduled == nil && newEvent.Task == "":
-		return nil, ErrNothingToUpdate
+	case updatedEvent.UID == 0:
+		return nil, model.ErrUserIDNotSpecified
+	case updatedEvent.EID == "":
+		return nil, model.ErrEventIDNotSpecified
+	case updatedEvent.Scheduled == nil && updatedEvent.Description == "":
+		return nil, model.ErrNothingToUpdate
+	case updatedEvent.Scheduled != nil && updatedEvent.Scheduled.Before(time.Now().UTC()):
+		return nil, model.ErrEventTimePast
 	default:
-		newEvent.Updated = time.Now().UTC()
-		updatedEvent := es.Repo.UpdateEvent(uid, newEvent)
+		updatedEvent.Updated = time.Now().UTC()
+		updatedEvent := es.er.UpdateEvent(updatedEvent.UID, updatedEvent)
 		if updatedEvent == nil {
-			return nil, ErrEventNotFound
+			return nil, model.ErrEventNotFound
 		}
 		return updatedEvent, nil
 	}
 }
 
-func (es *eventService) DeleteEvent(uid model.UserID, eid uuid.UUID) (bool, error) {
-	eventID := eid.String()
-
+func (es *EventService) DeleteEvent(event model.Event) error {
 	switch {
-	case uid == 0 && eventID == "":
-		return false, ErrNothingToDelete
-	case eventID == "":
-		return false, ErrEventIDNotSpecified
-	case uid == 0:
-		return false, ErrUserIDNotSpecified
+	case event.UID == 0 && event.EID == "":
+		return model.ErrNothingToDelete
+	case event.EID == "":
+		return model.ErrEventIDNotSpecified
+	case event.UID == 0:
+		return model.ErrUserIDNotSpecified
 	default:
-		if es.Repo.DeleteEvent(uid, eventID) {
-			return true, nil
+		if es.er.DeleteEvent(event.UID, event.EID) {
+			return nil
 		}
-		return false, ErrEventNotFound
+		return model.ErrEventNotFound
 	}
 }
 
-func (es *eventService) GetDayEvents(uid model.UserID, start string) ([]model.Event, error) {
+func (es *EventService) GetDayEvents(uid uint, start *model.CustomTime) ([]model.Event, error) {
 	return es.getEvents(uid, start, 1, 0)
 }
 
-func (es *eventService) GetWeekEvents(uid model.UserID, start string) ([]model.Event, error) {
+func (es *EventService) GetWeekEvents(uid uint, start *model.CustomTime) ([]model.Event, error) {
 	return es.getEvents(uid, start, 7, 0)
 }
 
-func (es *eventService) GetMonthEvents(uid model.UserID, start string) ([]model.Event, error) {
+func (es *EventService) GetMonthEvents(uid uint, start *model.CustomTime) ([]model.Event, error) {
 	return es.getEvents(uid, start, 0, 1)
 }
 
-func (es *eventService) getEvents(uid model.UserID, start string, addDays, addMonths int) ([]model.Event, error) {
+func (es *EventService) getEvents(uid uint, start *model.CustomTime, addDays, addMonths int) ([]model.Event, error) {
 	switch {
 	case uid == 0:
-		return nil, ErrUserIDNotSpecified
-	case start == "" || start == "nil" || start == "null":
-		return nil, ErrDateNotSpecified
+		return nil, model.ErrUserIDNotSpecified
+	case start == nil:
+		return nil, model.ErrDateNotSpecified
 	}
 
-	startDate := model.CustomTime{}
-	if err := startDate.UnmarshalJSON([]byte(start)); err != nil {
-		return nil, fmt.Errorf("ошибка при парсинге указанной даты: %v", err)
-	}
+	endDate := start.AddDate(0, addMonths, addDays).UTC()
 
-	endDate := startDate.AddDate(0, addMonths, addDays).UTC()
-
-	result := es.Repo.GetPeriodEvents(uid, startDate.Time, endDate)
+	result := es.er.GetPeriodEvents(uid, start.Time, endDate)
 
 	if result == nil {
-		return nil, ErrUserIDNotFound
+		return nil, model.ErrUserIDNotFound
 	}
 
 	return result, nil

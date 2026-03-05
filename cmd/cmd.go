@@ -8,93 +8,98 @@ import (
 	"os"
 	"os/signal"
 	"sync"
+	"syscall"
 	"time"
 
-	"calendar/config"
-	"calendar/internal/handler"
-	"calendar/internal/repository"
-	"calendar/internal/service"
-	"calendar/internal/storage"
-	"calendar/mwlogger"
-
-	"github.com/go-chi/chi/v5"
+	"github.com/UnendingLoop/-Calendar--microservice/internal/cleaner"
+	"github.com/UnendingLoop/-Calendar--microservice/internal/engine"
+	"github.com/UnendingLoop/-Calendar--microservice/internal/logger"
+	"github.com/UnendingLoop/-Calendar--microservice/internal/notifier"
+	"github.com/UnendingLoop/-Calendar--microservice/internal/repository"
+	"github.com/UnendingLoop/-Calendar--microservice/internal/service"
+	"github.com/UnendingLoop/-Calendar--microservice/internal/storage"
+	"github.com/UnendingLoop/-Calendar--microservice/internal/transport"
+	"github.com/wb-go/wbf/config"
 )
 
 func InitApp() {
-	// считать порт и имя файла из env
-	port, filename := config.GetEnvs()
-
-	// создать карту с событиями - считать из файла при запуске и записать в файл при выходе - грейсфул шатдаун
-	emap, err := storage.LoadEventsFromFile(filename)
-	if err != nil {
-		log.Printf("Failed to load eventsmap from file: %v.\nUsing a new clean eventsmap.\n", err)
-	} else {
-		log.Println("Eventsmap successfully loaded from file.")
+	log.Println("Starting Calendar application...")
+	// инициализировать конфиг/ считать энвы
+	appConfig := config.New()
+	appConfig.EnableEnv("")
+	if err := appConfig.LoadEnvFiles("./.env"); err != nil {
+		log.Fatalf("Failed to load envs: %s\nExiting app...", err)
 	}
+	// родительский контекст для всего приложения + WG
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	wg := sync.WaitGroup{}
 
-	// запустить сервер через middleware
-	repo := repository.NewEventRepository(emap)
+	// запуск слушателя логов
+	logCH := make(chan *logger.EventEntry, 10)
+	logger.LogCollector(&wg, appConfig.GetString("LOG_MODE"), logCH)
+	eventLogger := logger.NewAsyncLogger(context.Background(), logCH)
+
+	// создаем репо, сервис и хендлеры
+	emap, arch := storage.LoadActualArchiveMaps(appConfig)
+	updCh := make(chan struct{}, 1)
+	repo := repository.NewEventRepository(updCh, emap, arch)
 	srvc := service.NewEventService(repo)
-	hndlr := handler.NewEventHandler(srvc)
+	hndlr := transport.NewEventHandler(srvc)
 
-	r := chi.NewRouter()
-	r.Post("/create_event", hndlr.CreateEvent)       // создание нового события
-	r.Post("/update_event", hndlr.UpdateEvent)       // обновление существующего // должен быть метод PATCH, но задание требует использование именно POST
-	r.Post("/delete_event", hndlr.DeleteEvent)       // удаление // по заданию POST, должно быть DELETE
-	r.Get("/events_for_day", hndlr.GetDayEvents)     // получить все события на день ?user_id=1&date=2023-12-31
-	r.Get("/events_for_week", hndlr.GetWeekEvents)   // события на неделю ?user_id=1&date=2023-12-31
-	r.Get("/events_for_month", hndlr.GetMonthEvents) // события на месяц ?user_id=1&date=2023-12-31
+	// запуск слушателя/исполнителя ивентов
+	notifier.RunNotifier(ctx, &wg, repo, updCh)
 
-	// оборачиваем mux в middleware
-	loggedRouter := mwlogger.MWLogger(r)
+	// запуск клинера
+	cleaner.RunEventsCleaner(ctx, &wg, repo, appConfig.GetDuration("CLEANER_FREQ"))
 
-	srv := http.Server{
-		Addr:         ":" + port,
-		Handler:      loggedRouter,
-		ReadTimeout:  5 * time.Second,
-		WriteTimeout: 10 * time.Second,
-		IdleTimeout:  120 * time.Second,
-	}
-
+	// запустить сервер
+	srv := engine.NewServer(context.Background(), appConfig, hndlr, eventLogger)
 	go func() {
-		log.Println("Launching server on port", port)
+		log.Println("Launching server on port", appConfig.GetString("APP_PORT"))
 		err := srv.ListenAndServe()
 		if err != nil && err != http.ErrServerClosed {
-			log.Fatalf("Server stopped: %v", err)
+			log.Fatalf("Server unexpectedly stopped: %v", err)
 		}
 		log.Println("Server gracefully stopping...")
 	}()
 
-	// слушатель прерываний
-	sig := make(chan os.Signal, 1)
-	signal.Notify(sig, os.Interrupt)
-	wg := sync.WaitGroup{}
-
-	wg.Add(1)
+	// запуск слушателя прерываний
+	gsWG := sync.WaitGroup{}
+	gsWG.Add(1)
 	go func() {
-		<-sig
+		defer gsWG.Done()
+
+		<-ctx.Done()
 		log.Println("Interrupt received. Starting shutdown sequence...")
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		serverCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 
 		// отключение сервера
-		if err := srv.Shutdown(ctx); err != nil {
+		if err := srv.Shutdown(serverCtx); err != nil {
 			log.Printf("Server shutdown error: %v", err)
 		}
-		log.Println("HTTP server stopped. Writing eventsmap to file...")
+		log.Println("HTTP server stopped.")
 
-		// вызов сохранения карты в файл
+		// закрытие канала слушателя/исполнителя
+		close(updCh)
+		wg.Done()
+
+		// вызов сохранения мап в файлы
 		repo.SafeLockMap()
-		if err := storage.SaveEventsToFile(filename, emap); err != nil {
-			log.Printf("Failed to save eventsmap to file: %v", err)
-		} else {
-			log.Println("Eventsmap successfully saved to file.")
-		}
+		errs := storage.SaveActualArchiveMaps(appConfig, emap, arch)
 		repo.SafeUnlockMap()
+		if len(errs) == 0 {
+			log.Println("Saving eventsmaps to files - successfull.")
+		} else {
+			log.Println(errs)
+		}
+
+		// закрытие логгера
+		eventLogger.Shutdown()
 
 		log.Printf("Exiting application...")
-		wg.Done()
 	}()
 
-	wg.Wait()
+	gsWG.Wait()
 }
