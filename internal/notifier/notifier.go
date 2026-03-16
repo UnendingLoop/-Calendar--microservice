@@ -1,3 +1,4 @@
+// Package notifier launches as a goroutine and processes events taken from the heap
 package notifier
 
 import (
@@ -62,8 +63,12 @@ func RunNotifier(ctx context.Context, wg *sync.WaitGroup, repo eventRepository, 
 				if popErr != nil || poppedEvent == nil {
 					continue
 				}
-				poppedEvent.IsDone = true
-				log.Printf("Event %q with descr. %q is marked as done.", poppedEvent.EID, poppedEvent.Description)
+
+				if ok := repo.MarkEventDone(poppedEvent.UID, poppedEvent.EID); !ok {
+					log.Printf("Event %q is not found in repo.", poppedEvent.EID)
+				} else {
+					log.Printf("Event %q with descr. %q is marked as done.", poppedEvent.EID, poppedEvent.Description)
+				}
 
 				// пересчитываем таймер сна на следующий ивент
 				now := time.Now().UTC()
