@@ -7,13 +7,21 @@ import (
 	"time"
 
 	"github.com/UnendingLoop/-Calendar--microservice/internal/logger"
-	"github.com/UnendingLoop/-Calendar--microservice/internal/transport"
-	"github.com/wb-go/wbf/config"
 	"github.com/wb-go/wbf/ginext"
 )
 
-func NewServer(ctx context.Context, c *config.Config, h *transport.EventHandler, eventLogger logger.Logger) *http.Server {
-	engine := ginext.New(c.GetString("GIN_MODE"))
+type handler interface {
+	CreateEvent(c *ginext.Context)
+	DeleteEvent(c *ginext.Context)
+	GetDayEvents(c *ginext.Context)
+	GetMonthEvents(c *ginext.Context)
+	GetWeekEvents(c *ginext.Context)
+	SimplePinger(c *ginext.Context)
+	UpdateEvent(c *ginext.Context)
+}
+
+func NewServer(ctx context.Context, mode, port string, h handler, eventLogger logger.Logger) *http.Server {
+	engine := ginext.New(mode)
 
 	engine.Use(eventLogger.RequestLogger()) // логирование запросов
 	engine.GET("/ping", h.SimplePinger)
@@ -28,7 +36,7 @@ func NewServer(ctx context.Context, c *config.Config, h *transport.EventHandler,
 	events.GET("/for_month", h.GetMonthEvents) // события на месяц ?user_id=1&date=2023-12-31
 
 	return &http.Server{
-		Addr:         ":" + c.GetString("APP_PORT"),
+		Addr:         ":" + port,
 		Handler:      engine,
 		ReadTimeout:  5 * time.Second,
 		WriteTimeout: 10 * time.Second,
