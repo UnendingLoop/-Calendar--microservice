@@ -11,9 +11,9 @@ import (
 )
 
 type eventRepository interface {
-	GetNextEventTime() (time.Time, error)
-	MarkEventDone(uid uint, eid string) bool
-	PopNearestEvent() (*model.Event, error)
+	GetNextEventTime() (time.Time, error)    // возврат времени ближайшего события без удаления его из кучи, error - если куча пустая
+	MarkEventDone(uid uint, eid string) bool // возвращаемый bool - ивент найден/не найден
+	PopNearestEvent() (*model.Event, error)  // достает ближайший ивент и удаляет его из кучи
 }
 
 func RunNotifier(ctx context.Context, wg *sync.WaitGroup, repo eventRepository, updCh <-chan struct{}) {
@@ -26,6 +26,7 @@ func RunNotifier(ctx context.Context, wg *sync.WaitGroup, repo eventRepository, 
 		var nexTime time.Time
 		var err error
 
+		// инициализация работы
 		for {
 			nexTime, err = repo.GetNextEventTime()
 			if err == nil {
@@ -34,10 +35,16 @@ func RunNotifier(ctx context.Context, wg *sync.WaitGroup, repo eventRepository, 
 
 			// ждём сигнал о новом событии
 			select {
-			case <-updCh:
-				continue // получили сигнал, пробуем снова
+			case <-ctx.Done():
+				log.Println("Notifier's ctx is cancelled before completing init. Exiting notifier...")
+				return
+			case _, ok := <-updCh:
+				if !ok {
+					log.Println("Notifier's update channel is closed. Exiting notifier...")
+					return
+				}
 			case <-time.After(1 * time.Minute):
-				continue // или таймаут
+				continue // или ждем таймаут
 			}
 		}
 
@@ -45,6 +52,7 @@ func RunNotifier(ctx context.Context, wg *sync.WaitGroup, repo eventRepository, 
 
 		log.Println("Event-notifier is successfully launched.")
 
+		// основной цикл
 		for {
 			select {
 			case <-ctx.Done():
