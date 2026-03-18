@@ -1,5 +1,5 @@
 // Package cmd is an entrypoint to the application and a command center
-package cmd
+package main
 
 import (
 	"context"
@@ -22,7 +22,7 @@ import (
 	"github.com/wb-go/wbf/config"
 )
 
-func InitApp() {
+func main() {
 	log.Println("Starting Calendar application...")
 	// инициализировать конфиг/ считать энвы
 	appConfig := config.New()
@@ -83,7 +83,6 @@ func InitApp() {
 
 		// закрытие канала слушателя/исполнителя
 		close(updCh)
-		wg.Done()
 
 		// вызов сохранения мап в файлы
 		repo.SafeLockMap()
@@ -98,6 +97,7 @@ func InitApp() {
 		// закрытие логгера
 		eventLogger.Shutdown()
 
+		wg.Wait()
 		log.Printf("Exiting application...")
 	}()
 
