@@ -34,7 +34,15 @@ func LogCollector(wg *sync.WaitGroup, logMode string, ch <-chan *EventEntry) {
 	go func() {
 		defer wg.Done()
 		for logEntry := range ch {
-			fmt.Fprintln(out, logEntry.TimeStamp, logEntry.Level, logEntry.Msg, logEntry.Err, logEntry.Fields)
+			switch logEntry.Level {
+			case "INFO", "info", "Info":
+				fmt.Fprintln(out, logEntry.TimeStamp, "\n", logEntry.Level, "\n", logEntry.Fields, "\n", logEntry.Msg)
+			case "ERROR", "error", "Error":
+				fmt.Fprintln(out, logEntry.TimeStamp, "\n", logEntry.Level, "\n", logEntry.Fields, "\n", logEntry.Msg, ": ", logEntry.Err.Error()+"\n")
+			default:
+				fmt.Fprintln(out, logEntry.TimeStamp, "\n", logEntry.Fields, "\n", logEntry.Level, " - UNKNOWN LOGENTRY!", "\n", logEntry.Msg, ": ", logEntry.Err)
+
+			}
 		}
 		log.Println("Log channel closed. Exiting LogCollector")
 	}()
