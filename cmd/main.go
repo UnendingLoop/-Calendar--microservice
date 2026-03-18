@@ -54,9 +54,10 @@ func main() {
 	cleaner.RunEventsCleaner(ctx, &wg, repo, appConfig.GetDuration("CLEANER_FREQ"))
 
 	// запустить сервер
-	srv := engine.NewServer(context.Background(), appConfig, hndlr, eventLogger)
+	port := appConfig.GetString("APP_PORT")
+	srv := engine.NewServer(context.Background(), appConfig.GetString("GIN_MODE"), port, hndlr, eventLogger)
 	go func() {
-		log.Println("Launching server on port", appConfig.GetString("APP_PORT"))
+		log.Println("Launching server on port", port)
 		err := srv.ListenAndServe()
 		if err != nil && err != http.ErrServerClosed {
 			log.Fatalf("Server unexpectedly stopped: %v", err)
