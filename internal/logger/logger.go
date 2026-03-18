@@ -2,8 +2,13 @@
 package logger
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
+	"io"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -155,7 +160,7 @@ func (el *AsyncLogger) RequestLogger() ginext.HandlerFunc {
 		if err != nil {
 			rlog.Error("JSON decode error", err)
 		}
-		if uid != "" {
+		if uid != 0 {
 			rlog.With(Field{Key: "userID", Value: uid})
 		}
 		if eid != "" {
@@ -177,26 +182,34 @@ func (el *AsyncLogger) RequestLogger() ginext.HandlerFunc {
 	}
 }
 
-func getUserIDandEventID(c *ginext.Context) (string, string, error) {
+func getUserIDandEventID(c *ginext.Context) (uint, string, error) {
 	var res struct {
-		UserID  string `json:"user_id"`
+		UserID  uint   `json:"user_id"`
 		EventID string `json:"event_id"`
 	}
 
 	// сначала пробуем прочитать JSON из тела
-	err := c.ShouldBind(&res)
+	body, _ := io.ReadAll(c.Request.Body)
+	c.Request.Body = io.NopCloser(bytes.NewBuffer(body))
+
+	err := json.Unmarshal(body, &res)
+	if err != nil {
+		return 0, "", err
+	}
 
 	// пробуем читать параметры запроса
-	if res.UserID == "" {
-		uid, uok := c.Params.Get("user_id")
-		if uok && uid != "" {
-			res.UserID = uid
+	if res.UserID == 0 {
+		str, uok := c.Params.Get("user_id")
+		if uok && str != "" {
+			str = strings.TrimSpace(str)
+			uid, _ := strconv.ParseUint(str, 10, 64)
+			res.UserID = uint(uid)
 		}
 	}
 	if res.EventID == "" {
 		eid, eok := c.Params.Get("event_id")
 		if eok && eid != "" {
-			res.UserID = eid
+			res.EventID = eid
 		}
 	}
 
