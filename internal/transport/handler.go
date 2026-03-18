@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/UnendingLoop/-Calendar--microservice/internal/logger"
 	"github.com/UnendingLoop/-Calendar--microservice/internal/model"
@@ -17,9 +18,9 @@ type eventService interface {
 	CreateEvent(newEvent model.Event) (*model.Event, error)
 	UpdateEvent(updatedEvent model.Event) (*model.Event, error)
 	DeleteEvent(event model.Event) error
-	GetDayEvents(uid uint, start *model.CustomTime) ([]model.Event, error)
-	GetWeekEvents(uid uint, start *model.CustomTime) ([]model.Event, error)
-	GetMonthEvents(uid uint, start *model.CustomTime) ([]model.Event, error)
+	GetDayEvents(uid uint, start *time.Time) ([]model.Event, error)
+	GetWeekEvents(uid uint, start *time.Time) ([]model.Event, error)
+	GetMonthEvents(uid uint, start *time.Time) ([]model.Event, error)
 }
 
 type EventHandler struct {
@@ -37,7 +38,7 @@ func (eh *EventHandler) SimplePinger(c *ginext.Context) {
 func (eh *EventHandler) CreateEvent(c *ginext.Context) {
 	eloger := c.Request.Context().Value(model.LoggerCtxName).(logger.Logger)
 	newEvent := model.Event{}
-	if err := c.ShouldBind(&newEvent); err != nil {
+	if err := c.ShouldBindJSON(&newEvent); err != nil {
 		eloger.Error("Failed to parse new event data from JSON", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -146,7 +147,7 @@ func (eh *EventHandler) GetMonthEvents(c *ginext.Context) {
 	c.JSON(http.StatusOK, events)
 }
 
-func getUserIDandDate(c *ginext.Context) (int, *model.CustomTime, error) {
+func getUserIDandDate(c *ginext.Context) (int, *time.Time, error) {
 	q := c.Request.URL.Query()
 	rawID := q.Get("user_id")
 	if rawID == "" {
@@ -163,8 +164,8 @@ func getUserIDandDate(c *ginext.Context) (int, *model.CustomTime, error) {
 		return 0, nil, errors.New("empty date")
 	}
 
-	startDate := model.CustomTime{}
-	if err := startDate.UnmarshalJSON([]byte(rawDate)); err != nil {
+	startDate, err := time.Parse("2006-01-02", rawDate)
+	if err != nil {
 		return 0, nil, fmt.Errorf("date parse error: %v", err)
 	}
 
@@ -176,7 +177,7 @@ func getErrorCode(e error) int {
 	case errors.Is(e, model.ErrUserIDNotSpecified) ||
 		errors.Is(e, model.ErrEventIDNotSpecified) ||
 		errors.Is(e, model.ErrNothingToDelete) ||
-		errors.Is(e, model.ErrDateNotSpecified) ||
+		errors.Is(e, model.ErrIncorrectDate) ||
 		errors.Is(e, model.ErrEventNotSpecified) ||
 		errors.Is(e, model.ErrNothingToUpdate) ||
 		errors.Is(e, model.ErrNothingToCreate) ||

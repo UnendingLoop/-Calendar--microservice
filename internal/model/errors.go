@@ -8,7 +8,7 @@ var (
 	ErrEventIDNotSpecified = errors.New("empty event ID")
 	ErrNothingToDelete     = errors.New("empty user and event IDs for deletion")
 	ErrEventNotFound       = errors.New("specified event ID for user ID not found")
-	ErrDateNotSpecified    = errors.New("empty event date")
+	ErrIncorrectDate       = errors.New("incorrect event date")
 	ErrEventNotSpecified   = errors.New("empty event description")
 	ErrNothingToUpdate     = errors.New("empty date and description for event update")
 	ErrNothingToCreate     = errors.New("empty info to update event")

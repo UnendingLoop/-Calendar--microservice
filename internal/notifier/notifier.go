@@ -50,7 +50,7 @@ func RunNotifier(ctx context.Context, wg *sync.WaitGroup, repo eventRepository, 
 
 		ticker := time.NewTimer(nexTime.Sub(time.Now().UTC()))
 
-		log.Println("Event-notifier is successfully launched.")
+		log.Println("Event-notifier is initialized with event.")
 
 		// основной цикл
 		for {
