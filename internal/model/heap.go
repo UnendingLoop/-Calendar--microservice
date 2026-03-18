@@ -22,7 +22,9 @@ func (h EventHeap) Swap(i, j int) {
 }
 
 func (h *EventHeap) Push(x any) {
-	*h = append(*h, x.(*HeapEntity))
+	item := x.(*HeapEntity)
+	item.Index = len(*h)
+	*h = append(*h, item)
 }
 
 func (h *EventHeap) Pop() any {
