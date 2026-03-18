@@ -35,7 +35,7 @@ func (eh *EventHandler) SimplePinger(c *ginext.Context) {
 }
 
 func (eh *EventHandler) CreateEvent(c *ginext.Context) {
-	eloger := (c.Value(model.LoggerCtxName)).(logger.Logger)
+	eloger := c.Request.Context().Value(model.LoggerCtxName).(logger.Logger)
 	newEvent := model.Event{}
 	if err := c.ShouldBind(&newEvent); err != nil {
 		eloger.Error("Failed to parse new event data from JSON", err)
@@ -54,7 +54,7 @@ func (eh *EventHandler) CreateEvent(c *ginext.Context) {
 }
 
 func (eh *EventHandler) UpdateEvent(c *ginext.Context) {
-	eloger := (c.Value(model.LoggerCtxName)).(logger.Logger)
+	eloger := c.Request.Context().Value(model.LoggerCtxName).(logger.Logger)
 	newEvent := model.Event{}
 	if err := c.ShouldBind(&newEvent); err != nil {
 		eloger.Error("Failed to parse event updated data from JSON", err)
@@ -73,7 +73,7 @@ func (eh *EventHandler) UpdateEvent(c *ginext.Context) {
 }
 
 func (eh *EventHandler) DeleteEvent(c *ginext.Context) {
-	eloger := (c.Value(model.LoggerCtxName)).(logger.Logger)
+	eloger := c.Request.Context().Value(model.LoggerCtxName).(logger.Logger)
 	newEvent := model.Event{}
 	if err := c.ShouldBind(&newEvent); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -90,7 +90,7 @@ func (eh *EventHandler) DeleteEvent(c *ginext.Context) {
 }
 
 func (eh *EventHandler) GetDayEvents(c *ginext.Context) {
-	eloger := (c.Value(model.LoggerCtxName)).(logger.Logger)
+	eloger := c.Request.Context().Value(model.LoggerCtxName).(logger.Logger)
 	id, date, err := getUserIDandDate(c)
 	if err != nil {
 		eloger.Error("Failed to parse userID and/or date to get day-events list", err)
@@ -109,7 +109,7 @@ func (eh *EventHandler) GetDayEvents(c *ginext.Context) {
 }
 
 func (eh *EventHandler) GetWeekEvents(c *ginext.Context) {
-	eloger := (c.Value(model.LoggerCtxName)).(logger.Logger)
+	eloger := c.Request.Context().Value(model.LoggerCtxName).(logger.Logger)
 	id, date, err := getUserIDandDate(c)
 	if err != nil {
 		eloger.Error("Failed to parse userID and/or date to get week-events list", err)
@@ -128,7 +128,7 @@ func (eh *EventHandler) GetWeekEvents(c *ginext.Context) {
 }
 
 func (eh *EventHandler) GetMonthEvents(c *ginext.Context) {
-	eloger := (c.Value(model.LoggerCtxName)).(logger.Logger)
+	eloger := c.Request.Context().Value(model.LoggerCtxName).(logger.Logger)
 	id, date, err := getUserIDandDate(c)
 	if err != nil {
 		eloger.Error("Failed to parse userID and/or date to get month-events list", err)
@@ -147,8 +147,9 @@ func (eh *EventHandler) GetMonthEvents(c *ginext.Context) {
 }
 
 func getUserIDandDate(c *ginext.Context) (int, *model.CustomTime, error) {
-	rawID, uOK := c.Params.Get("user_id")
-	if !uOK || rawID == "" {
+	q := c.Request.URL.Query()
+	rawID := q.Get("user_id")
+	if rawID == "" {
 		return 0, nil, errors.New("empty user ID")
 	}
 
@@ -157,8 +158,8 @@ func getUserIDandDate(c *ginext.Context) (int, *model.CustomTime, error) {
 		return 0, nil, errors.New("incorrect user ID")
 	}
 
-	rawDate, dOK := c.Params.Get("date")
-	if !dOK {
+	rawDate := q.Get("date")
+	if rawDate == "" {
 		return 0, nil, errors.New("empty date")
 	}
 
