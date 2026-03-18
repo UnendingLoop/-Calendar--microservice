@@ -23,9 +23,9 @@ func LogCollector(wg *sync.WaitGroup, logMode string, ch <-chan *EventEntry) {
 		out = os.Stdout
 	default:
 		filename := time.Now().Format("2006-01-02") + logMode
-		out, err = os.Create(filename)
+		out, err = os.OpenFile(filename, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
 		if err != nil {
-			log.Println("failed to create log-file. Using stdout as default.")
+			log.Println("failed to open/create log-file. Using stdout as default.")
 			out = os.Stdout
 		}
 	}
