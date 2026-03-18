@@ -13,7 +13,7 @@ type eventRepository interface {
 	CreateEvent(event model.Event)
 	UpdateEvent(uid uint, event model.Event) *model.Event
 	DeleteEvent(uid uint, eid string) bool
-	GetPeriodEvents(uid uint, start, end time.Time) []model.Event
+	GetPeriodEvents(uid uint, start, end *time.Time) []model.Event
 }
 
 type EventService struct {
@@ -79,29 +79,29 @@ func (es *EventService) DeleteEvent(event model.Event) error {
 	}
 }
 
-func (es *EventService) GetDayEvents(uid uint, start *model.CustomTime) ([]model.Event, error) {
+func (es *EventService) GetDayEvents(uid uint, start *time.Time) ([]model.Event, error) {
 	return es.getEvents(uid, start, 1, 0)
 }
 
-func (es *EventService) GetWeekEvents(uid uint, start *model.CustomTime) ([]model.Event, error) {
+func (es *EventService) GetWeekEvents(uid uint, start *time.Time) ([]model.Event, error) {
 	return es.getEvents(uid, start, 7, 0)
 }
 
-func (es *EventService) GetMonthEvents(uid uint, start *model.CustomTime) ([]model.Event, error) {
+func (es *EventService) GetMonthEvents(uid uint, start *time.Time) ([]model.Event, error) {
 	return es.getEvents(uid, start, 0, 1)
 }
 
-func (es *EventService) getEvents(uid uint, start *model.CustomTime, addDays, addMonths int) ([]model.Event, error) {
+func (es *EventService) getEvents(uid uint, start *time.Time, addDays, addMonths int) ([]model.Event, error) {
 	switch {
 	case uid == 0:
 		return nil, model.ErrUserIDNotSpecified
 	case start == nil:
-		return nil, model.ErrDateNotSpecified
+		return nil, model.ErrIncorrectDate
 	}
 
 	endDate := start.AddDate(0, addMonths, addDays).UTC()
 
-	result := es.er.GetPeriodEvents(uid, start.Time, endDate)
+	result := es.er.GetPeriodEvents(uid, start, &endDate)
 
 	if result == nil {
 		return nil, model.ErrUserIDNotFound
