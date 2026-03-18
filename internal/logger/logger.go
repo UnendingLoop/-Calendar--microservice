@@ -49,6 +49,9 @@ func NewAsyncLogger(ctx context.Context, ch chan<- *EventEntry) Logger {
 		ctx:       lctx,
 		ctxCancel: cancel,
 		wg:        &sync.WaitGroup{},
+		event: &EventEntry{
+			Fields: []Field{},
+		},
 	}
 }
 
@@ -58,6 +61,9 @@ func (el *AsyncLogger) WithNewLogger() Logger {
 		ctx:       el.ctx,
 		ctxCancel: el.ctxCancel,
 		wg:        el.wg,
+		event: &EventEntry{
+			Fields: []Field{},
+		},
 	}
 }
 
@@ -77,13 +83,19 @@ func (el *AsyncLogger) Error(msg string, err error) {
 	el.wg.Add(1)
 	defer el.wg.Done()
 
-	el.event.Level = "ERROR"
-	el.event.Err = err
-	el.event.TimeStamp = time.Now()
+	fieldsCopy := append([]Field(nil), el.event.Fields...)
+
+	entry := &EventEntry{
+		Level:     "ERROR",
+		Msg:       msg,
+		Err:       err,
+		TimeStamp: time.Now(),
+		Fields:    fieldsCopy,
+	}
 	select {
 	case <-el.ctx.Done():
 		return
-	case el.ch <- el.event:
+	case el.ch <- entry:
 	}
 }
 
@@ -91,14 +103,20 @@ func (el *AsyncLogger) Info(msg string) {
 	el.wg.Add(1)
 	defer el.wg.Done()
 
-	el.event.Level = "INFO"
-	el.event.Msg = msg
-	el.event.TimeStamp = time.Now()
+	fieldsCopy := append([]Field(nil), el.event.Fields...)
+
+	entry := &EventEntry{
+		Level:     "INFO",
+		Msg:       msg,
+		Err:       fmt.Errorf("no-error"),
+		TimeStamp: time.Now(),
+		Fields:    fieldsCopy,
+	}
 
 	select {
 	case <-el.ctx.Done():
 		return
-	case el.ch <- el.event:
+	case el.ch <- entry:
 	}
 }
 
@@ -149,7 +167,7 @@ func (el *AsyncLogger) RequestLogger() ginext.HandlerFunc {
 
 		// кладем логгер в контекст запроса
 		ctx := context.WithValue(c.Request.Context(), model.LoggerCtxName, rlog)
-		c.Request = c.Request.WithContext(ctx)
+		c.Request = c.Request.Clone(ctx)
 
 		// передаем вызов дальше
 		c.Next()
