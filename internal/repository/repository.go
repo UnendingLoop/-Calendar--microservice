@@ -43,7 +43,7 @@ func (sem *SecureEventsMap) CreateEvent(event model.Event) {
 	// кладем в мапу
 	sem.eventMap[event.UID] = append(sem.eventMap[event.UID], newHeapEntity)
 	// проверяем, надо ли будить горутину-слушатель для пересчета времени
-	if sem.eh[0].Event.Scheduled.After(event.Scheduled.Time) {
+	if sem.eh[0].Event.Scheduled.After(event.Scheduled.Time) || event.Scheduled.Before(time.Now().UTC()) {
 		select {
 		case sem.updateCh <- struct{}{}:
 		default:
@@ -130,7 +130,7 @@ func (sem *SecureEventsMap) DeleteEvent(uid uint, eid string) bool {
 	return false
 }
 
-func (sem *SecureEventsMap) GetPeriodEvents(uid uint, start, end time.Time) []model.Event {
+func (sem *SecureEventsMap) GetPeriodEvents(uid uint, start, end *time.Time) []model.Event {
 	sem.mu.RLock()
 	defer sem.mu.RUnlock()
 
@@ -152,7 +152,7 @@ func (sem *SecureEventsMap) GetPeriodEvents(uid uint, start, end time.Time) []mo
 	result := []model.Event{}
 
 	for _, v := range userEvents {
-		if !v.Event.Scheduled.Before(start) && !v.Event.Scheduled.After(end) {
+		if !v.Event.Scheduled.Before(*start) && !v.Event.Scheduled.After(*end) {
 			result = append(result, *v.Event)
 		}
 	}
@@ -173,6 +173,7 @@ func (sem *SecureEventsMap) ArchiveExpired() int {
 		for _, e := range events {
 			switch e.Event.IsDone { // архивируем только выполненные ивенты
 			case true:
+				e.Index = -1
 				archE = append(archE, e)
 			case false:
 				actualE = append(actualE, e)
@@ -232,13 +233,12 @@ func (sem *SecureEventsMap) SafeUnlockMap() {
 }
 
 func convertMapToSliceNormalize(emap, arch map[uint]model.EventHeap) model.EventHeap {
-	now := time.Now().UTC()
 	resHeap := model.EventHeap{}
 
 	for k, v := range emap {
 		res := model.EventHeap{}
 		for _, e := range v {
-			if e.Event.Scheduled.Before(now) {
+			if e.Event.IsDone {
 				arch[k] = append(arch[k], e)
 				continue
 			}
