@@ -145,6 +145,7 @@ func (sem *SecureEventsMap) GetPeriodEvents(uid uint, start, end time.Time) []mo
 		userArchive, ok := sem.archive[uid]
 		if ok {
 			userArchive = append(userArchive, userArchive...)
+			sem.archive[uid] = userArchive
 		}
 	}
 
