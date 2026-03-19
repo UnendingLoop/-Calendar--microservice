@@ -17,7 +17,7 @@ import (
 type eventService interface {
 	CreateEvent(newEvent model.Event) (*model.Event, error)
 	UpdateEvent(updatedEvent model.Event) (*model.Event, error)
-	DeleteEvent(event model.Event) error
+	DeleteEvent(eid string, uid uint) error
 	GetDayEvents(uid uint, start *time.Time) ([]model.Event, error)
 	GetWeekEvents(uid uint, start *time.Time) ([]model.Event, error)
 	GetMonthEvents(uid uint, start *time.Time) ([]model.Event, error)
@@ -75,13 +75,15 @@ func (eh *EventHandler) UpdateEvent(c *ginext.Context) {
 
 func (eh *EventHandler) DeleteEvent(c *ginext.Context) {
 	eloger := c.Request.Context().Value(model.LoggerCtxName).(logger.Logger)
-	newEvent := model.Event{}
-	if err := c.ShouldBind(&newEvent); err != nil {
+	candidate := model.DeleteDTO{}
+
+	if err := c.ShouldBind(&candidate); err != nil {
+		eloger.Error("Failed to parse delete-candidate info", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	if err := eh.es.DeleteEvent(newEvent); err != nil {
+	if err := eh.es.DeleteEvent(candidate.EID, candidate.UID); err != nil {
 		eloger.Error("Failed to delete event", err)
 		c.JSON(getErrorCode(err), gin.H{"error": err.Error()})
 		return
@@ -174,18 +176,18 @@ func getUserIDandDate(c *ginext.Context) (int, *time.Time, error) {
 
 func getErrorCode(e error) int {
 	switch {
-	case errors.Is(e, model.ErrUserIDNotSpecified) ||
-		errors.Is(e, model.ErrEventIDNotSpecified) ||
-		errors.Is(e, model.ErrNothingToDelete) ||
-		errors.Is(e, model.ErrIncorrectDate) ||
-		errors.Is(e, model.ErrEventNotSpecified) ||
-		errors.Is(e, model.ErrNothingToUpdate) ||
-		errors.Is(e, model.ErrNothingToCreate) ||
-		errors.Is(e, model.ErrEventTimePast) ||
+	case errors.Is(e, model.ErrUserIDNotSpecified),
+		errors.Is(e, model.ErrEventIDNotSpecified),
+		errors.Is(e, model.ErrNothingToDelete),
+		errors.Is(e, model.ErrIncorrectDate),
+		errors.Is(e, model.ErrEventNotSpecified),
+		errors.Is(e, model.ErrNothingToUpdate),
+		errors.Is(e, model.ErrNothingToCreate),
+		errors.Is(e, model.ErrEventTimePast),
 		errors.Is(e, model.ErrEventDescrEmpty):
 		return 400
-	case errors.Is(e, model.ErrUserIDNotFound) ||
-		errors.Is(e, model.ErrEventDescrEmpty):
+	case errors.Is(e, model.ErrUserIDNotFound),
+		errors.Is(e, model.ErrEventNotFound):
 		return 404
 	}
 	return 500

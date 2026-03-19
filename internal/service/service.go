@@ -63,16 +63,16 @@ func (es *EventService) UpdateEvent(updatedEvent model.Event) (*model.Event, err
 	}
 }
 
-func (es *EventService) DeleteEvent(event model.Event) error {
+func (es *EventService) DeleteEvent(eid string, uid uint) error {
 	switch {
-	case event.UID == 0 && event.EID == "":
+	case uid == 0 && eid == "":
 		return model.ErrNothingToDelete
-	case event.EID == "":
+	case eid == "":
 		return model.ErrEventIDNotSpecified
-	case event.UID == 0:
+	case uid == 0:
 		return model.ErrUserIDNotSpecified
 	default:
-		if es.er.DeleteEvent(event.UID, event.EID) {
+		if es.er.DeleteEvent(uid, eid) {
 			return nil
 		}
 		return model.ErrEventNotFound
