@@ -22,6 +22,11 @@ type Event struct {
 	IsDone      bool        `json:"is_done"`                    // флаг "отправленности"/выполненности задачи/события
 }
 
+type DeleteDTO struct {
+	EID string `json:"event_id" binding:"required"` // id задачи/события
+	UID uint   `json:"user_id" binding:"required"`  // id создателя задачи
+}
+
 func (ct *CustomTime) UnmarshalJSON(b []byte) error {
 	s := strings.Trim(string(b), `"`)
 	if s == "null" || s == "" {
