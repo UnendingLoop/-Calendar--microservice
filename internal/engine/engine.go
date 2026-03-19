@@ -28,9 +28,9 @@ func NewServer(ctx context.Context, mode, port string, h handler, eventLogger lo
 
 	events := engine.Group("/events")
 
-	events.POST("", h.CreateEvent)             // создание нового события
-	events.PATCH("", h.UpdateEvent)            // обновление существующего
-	events.DELETE("", h.DeleteEvent)           // удаление существующего
+	events.POST("", h.CreateEvent)             // создание нового события JSON
+	events.PATCH("", h.UpdateEvent)            // обновление существующего JSON
+	events.DELETE("", h.DeleteEvent)           // удаление существующего JSON
 	events.GET("/for_day", h.GetDayEvents)     // получить все события на день ?user_id=1&date=2023-12-31
 	events.GET("/for_week", h.GetWeekEvents)   // события на неделю ?user_id=1&date=2023-12-31
 	events.GET("/for_month", h.GetMonthEvents) // события на месяц ?user_id=1&date=2023-12-31
