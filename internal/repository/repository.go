@@ -17,8 +17,18 @@ type SecureEventsMap struct {
 	mu       sync.RWMutex                // общий мьютекс для всех операций
 }
 
-func NewEventRepository(uc chan<- struct{}, emap, arch map[uint]model.EventHeap) *SecureEventsMap {
-	cleanHeap := convertMapToSliceNormalize(emap, arch)
+func NewEventRepository(uc chan<- struct{}, emap map[uint][]model.HeapEntity, arch map[uint][]model.Event) (*SecureEventsMap, error) {
+	if emap == nil {
+		emap = make(map[uint][]model.HeapEntity)
+	}
+	if arch == nil {
+		arch = make(map[uint][]model.Event)
+	}
+	if uc == nil {
+		return nil, errors.New("nil-channel provided")
+	}
+
+	cleanHeap := convertMapToSliceNormalize(emap)
 	heap.Init(&cleanHeap)
 
 	return &SecureEventsMap{
@@ -27,7 +37,7 @@ func NewEventRepository(uc chan<- struct{}, emap, arch map[uint]model.EventHeap)
 		eh:       cleanHeap,
 		updateCh: uc,
 		mu:       sync.RWMutex{},
-	}
+	}, nil
 }
 
 func (sem *SecureEventsMap) CreateEvent(event model.Event) {

@@ -43,7 +43,10 @@ func main() {
 	// создаем репо, сервис и хендлеры
 	emap, arch := storage.LoadActualArchiveMaps(appConfig)
 	updCh := make(chan struct{}, 1)
-	repo := repository.NewEventRepository(updCh, emap, arch)
+	repo, err := repository.NewEventRepository(updCh, emap, arch)
+	if err != nil {
+		log.Fatalf("Unable to launch the app - failed to create repository: %v", err)
+	}
 	srvc := service.NewEventService(repo)
 	hndlr := transport.NewEventHandler(srvc)
 

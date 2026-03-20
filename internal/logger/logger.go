@@ -192,9 +192,11 @@ func getUserIDandEventID(c *ginext.Context) (uint, string, error) {
 	body, _ := io.ReadAll(c.Request.Body)
 	c.Request.Body = io.NopCloser(bytes.NewBuffer(body))
 
-	err := json.Unmarshal(body, &res)
-	if err != nil {
-		return 0, "", err
+	if body != nil || len(body) != 0 {
+		err := json.Unmarshal(body, &res)
+		if err != nil {
+			return 0, "", err
+		}
 	}
 
 	// пробуем читать параметры запроса
@@ -213,5 +215,5 @@ func getUserIDandEventID(c *ginext.Context) (uint, string, error) {
 		}
 	}
 
-	return res.UserID, res.EventID, err
+	return res.UserID, res.EventID, nil
 }
