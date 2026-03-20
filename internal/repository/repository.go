@@ -10,11 +10,11 @@ import (
 )
 
 type SecureEventsMap struct {
-	eventMap map[uint]model.EventHeap // мапа для будущих ивентов
-	archive  map[uint]model.EventHeap // архив для прошедших ивентов
-	eh       model.EventHeap          // куча для упорядочивания ивентов по времени
-	updateCh chan<- struct{}          // канал для оповещения о необходимости пересчета времени до ближайшего события
-	mu       sync.RWMutex             // общий мьютекс для всех операций
+	eventMap map[uint][]model.HeapEntity // мапа для будущих ивентов
+	archive  map[uint][]model.Event      // архив для прошедших ивентов
+	eh       model.EventHeap             // куча для упорядочивания ивентов по времени
+	updateCh chan<- struct{}             // канал для оповещения о необходимости пересчета времени до ближайшего события
+	mu       sync.RWMutex                // общий мьютекс для всех операций
 }
 
 func NewEventRepository(uc chan<- struct{}, emap, arch map[uint]model.EventHeap) *SecureEventsMap {
@@ -167,14 +167,14 @@ func (sem *SecureEventsMap) ArchiveExpired() int {
 	nArchived := 0
 
 	for uid, events := range sem.eventMap {
-		archE := model.EventHeap{}
-		actualE := model.EventHeap{}
+		archE := []model.Event{}
+		actualE := []model.HeapEntity{}
 
 		for _, e := range events {
 			switch e.Event.IsDone { // архивируем только выполненные ивенты
 			case true:
 				e.Index = -1
-				archE = append(archE, e)
+				archE = append(archE, *e.Event)
 			case false:
 				actualE = append(actualE, e)
 			}
@@ -232,20 +232,13 @@ func (sem *SecureEventsMap) SafeUnlockMap() {
 	sem.mu.RUnlock()
 }
 
-func convertMapToSliceNormalize(emap, arch map[uint]model.EventHeap) model.EventHeap {
+func convertMapToSliceNormalize(emap map[uint][]model.HeapEntity) model.EventHeap {
 	resHeap := model.EventHeap{}
 
-	for k, v := range emap {
-		res := model.EventHeap{}
+	for _, v := range emap {
 		for _, e := range v {
-			if e.Event.IsDone {
-				arch[k] = append(arch[k], e)
-				continue
-			}
-			res = append(res, e)
+			resHeap = append(resHeap, &e)
 		}
-		emap[k] = res
-		resHeap = append(resHeap, res...)
 	}
 
 	return resHeap

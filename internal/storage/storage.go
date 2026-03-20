@@ -3,6 +3,7 @@ package storage
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -12,7 +13,7 @@ import (
 	"github.com/wb-go/wbf/config"
 )
 
-func LoadActualArchiveMaps(c *config.Config) (map[uint]model.EventHeap, map[uint]model.EventHeap) {
+func LoadActualArchiveMaps(c *config.Config) (map[uint][]model.HeapEntity, map[uint][]model.Event) {
 	emap, err := loadEventsFromFile(c.GetString("FILENAME"))
 	if err != nil {
 		log.Printf("Failed to load eventsmap from file: %v.\nUsing a new clean eventsMap.\n", err)
@@ -20,7 +21,7 @@ func LoadActualArchiveMaps(c *config.Config) (map[uint]model.EventHeap, map[uint
 		log.Println("Eventsmap successfully loaded from file.")
 	}
 
-	arch, err := loadEventsFromFile(c.GetString("ARCHIVE"))
+	arch, err := loadArchiveFromFile(c.GetString("ARCHIVE"))
 	if err != nil {
 		log.Printf("Failed to load archive from file: %v.\nUsing a new clean archiveMap.\n", err)
 	} else {
@@ -30,7 +31,7 @@ func LoadActualArchiveMaps(c *config.Config) (map[uint]model.EventHeap, map[uint
 	return emap, arch
 }
 
-func SaveActualArchiveMaps(c *config.Config, actual, archive map[uint]model.EventHeap) []error {
+func SaveActualArchiveMaps(c *config.Config, actual map[uint][]model.HeapEntity, archive map[uint][]model.Event) []error {
 	now := time.Now().Format("2006-01-02")
 	res := []error{}
 	actualName := c.GetString("FILENAME")
@@ -54,25 +55,47 @@ func SaveActualArchiveMaps(c *config.Config, actual, archive map[uint]model.Even
 	return res
 }
 
-func loadEventsFromFile(filename string) (map[uint]model.EventHeap, error) {
+func loadEventsFromFile(filename string) (map[uint][]model.HeapEntity, error) {
 	file, err := os.Open(filename)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return make(map[uint]model.EventHeap), nil
+			return make(map[uint][]model.HeapEntity), nil
 		}
-		return make(map[uint]model.EventHeap), err
+		return make(map[uint][]model.HeapEntity), err
 	}
 	defer file.Close()
 
-	var data map[uint]model.EventHeap
+	data := map[uint][]model.HeapEntity{}
 	if err := json.NewDecoder(file).Decode(&data); err != nil {
-		return make(map[uint]model.EventHeap), err
+		return make(map[uint][]model.HeapEntity), err
 	}
 
 	return data, nil
 }
 
-func saveEventsToFile(filename string, events map[uint]model.EventHeap) error {
+func loadArchiveFromFile(filename string) (map[uint][]model.Event, error) {
+	file, err := os.Open(filename)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return make(map[uint][]model.Event), nil
+		}
+		return make(map[uint][]model.Event), err
+	}
+	defer file.Close()
+
+	data := map[uint][]model.Event{}
+	if err := json.NewDecoder(file).Decode(&data); err != nil {
+		return make(map[uint][]model.Event), err
+	}
+
+	return data, nil
+}
+
+func saveEventsToFile[T map[uint][]model.Event | map[uint][]model.HeapEntity](filename string, events T) error {
+	if events == nil {
+		return errors.New("provided map is a nil-map")
+	}
+
 	file, err := os.Create(filename)
 	if err != nil {
 		return err

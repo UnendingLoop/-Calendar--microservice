@@ -1,7 +1,7 @@
 package model
 
 type HeapEntity struct {
-	Index int    `json:"heap_id"`
+	Index int    
 	Event *Event `json:"event"`
 }
 
