@@ -3,6 +3,7 @@ package repository
 
 import (
 	"container/heap"
+	"errors"
 	"sync"
 	"time"
 
@@ -116,7 +117,8 @@ func (sem *SecureEventsMap) DeleteEvent(uid uint, eid string) bool {
 	sem.mu.Lock()
 	defer sem.mu.Unlock()
 
-	userEvents := sem.eventMap[uid]
+	userEvents, ok := sem.eventMap[uid]
+	if ok && len(userEvents) != 0 {
 	for i, v := range userEvents {
 		if v.Event.EID == eid {
 			sem.eventMap[uid] = append(userEvents[:i], userEvents[(i+1):]...)
@@ -128,14 +130,17 @@ func (sem *SecureEventsMap) DeleteEvent(uid uint, eid string) bool {
 				}
 			}
 			return true
+			}
 		}
 	}
 
-	userArchive := sem.archive[uid]
+	userArchive, ok := sem.archive[uid]
+	if ok && len(userArchive) != 0 {
 	for i, v := range userArchive {
-		if v.Event.EID == eid {
+			if v.EID == eid {
 			sem.archive[uid] = append(userArchive[:i], userArchive[(i+1):]...)
 			return true
+			}
 		}
 	}
 
@@ -145,27 +150,31 @@ func (sem *SecureEventsMap) DeleteEvent(uid uint, eid string) bool {
 func (sem *SecureEventsMap) GetPeriodEvents(uid uint, start, end *time.Time) []model.Event {
 	sem.mu.RLock()
 	defer sem.mu.RUnlock()
+	result := []model.Event{}
 
-	// достаем актуальные ивенты
+	// достаем актуальные ивенты, если end в будущем
+	if end.After(time.Now().UTC()) {
 	userEvents, ok := sem.eventMap[uid]
-	if !ok {
-		return nil
-	}
-
-	// если start в прошлом, проверяем архивные записи и добавляем их в выборку
-	if start.Before(time.Now().UTC()) {
-		userArchive, ok := sem.archive[uid]
 		if ok {
-			userArchive = append(userArchive, userArchive...)
-			sem.archive[uid] = userArchive
+			for _, v := range userEvents {
+				if !v.Event.Scheduled.Before(*start) && !v.Event.Scheduled.After(*end) {
+					result = append(result, *v.Event)
+				}
+			}
+		} else {
+		return nil
 		}
 	}
 
-	result := []model.Event{}
-
-	for _, v := range userEvents {
-		if !v.Event.Scheduled.Before(*start) && !v.Event.Scheduled.After(*end) {
-			result = append(result, *v.Event)
+	// если start в прошлом, проверяем архив и добавляем ивенты оттуда в выборку
+	if start.Before(time.Now().UTC()) {
+		userArchive, ok := sem.archive[uid]
+		if ok {
+			for _, v := range userArchive {
+				if !v.Scheduled.Before(*start) && !v.Scheduled.After(*end) {
+					result = append(result, v)
+				}
+			}
 		}
 	}
 
