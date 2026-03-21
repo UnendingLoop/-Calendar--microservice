@@ -1,7 +1,7 @@
 package model
 
 type HeapEntity struct {
-	Index int    
+	Index int
 	Event *Event `json:"event"`
 }
 
@@ -16,6 +16,9 @@ func (h EventHeap) Less(i, j int) bool {
 }
 
 func (h EventHeap) Swap(i, j int) {
+	if len(h) <= 1 {
+		return
+	}
 	h[i], h[j] = h[j], h[i]
 	h[i].Index = i
 	h[j].Index = j
@@ -30,6 +33,9 @@ func (h *EventHeap) Push(x any) {
 func (h *EventHeap) Pop() any {
 	old := *h
 	n := len(old)
+	if n == 0 {
+		return nil
+	}
 	item := old[n-1]
 
 	old[n-1] = nil
