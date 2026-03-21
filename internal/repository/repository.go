@@ -237,8 +237,9 @@ func (sem *SecureEventsMap) GetNextEventTime() (time.Time, error) {
 }
 
 func (sem *SecureEventsMap) PopNearestEvent() (*model.Event, error) {
-	event := heap.Pop(&sem.eh).(*model.HeapEntity)
-	if event != nil {
+	rawEvent := heap.Pop(&sem.eh)
+	if rawEvent != nil {
+		event := rawEvent.(*model.HeapEntity)
 		return event.Event, nil
 	}
 
