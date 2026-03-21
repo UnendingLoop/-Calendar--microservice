@@ -119,27 +119,27 @@ func (sem *SecureEventsMap) DeleteEvent(uid uint, eid string) bool {
 
 	userEvents, ok := sem.eventMap[uid]
 	if ok && len(userEvents) != 0 {
-	for i, v := range userEvents {
-		if v.Event.EID == eid {
-			sem.eventMap[uid] = append(userEvents[:i], userEvents[(i+1):]...)
-			heap.Remove(&sem.eh, v.Index)
-			if v.Index == 0 {
-				select {
-				case sem.updateCh <- struct{}{}:
-				default:
+		for i, v := range userEvents {
+			if v.Event.EID == eid {
+				sem.eventMap[uid] = append(userEvents[:i], userEvents[(i+1):]...)
+				heap.Remove(&sem.eh, v.Index)
+				if v.Index == 0 {
+					select {
+					case sem.updateCh <- struct{}{}:
+					default:
+					}
 				}
-			}
-			return true
+				return true
 			}
 		}
 	}
 
 	userArchive, ok := sem.archive[uid]
 	if ok && len(userArchive) != 0 {
-	for i, v := range userArchive {
+		for i, v := range userArchive {
 			if v.EID == eid {
-			sem.archive[uid] = append(userArchive[:i], userArchive[(i+1):]...)
-			return true
+				sem.archive[uid] = append(userArchive[:i], userArchive[(i+1):]...)
+				return true
 			}
 		}
 	}
@@ -154,7 +154,7 @@ func (sem *SecureEventsMap) GetPeriodEvents(uid uint, start, end *time.Time) []m
 
 	// достаем актуальные ивенты, если end в будущем
 	if end.After(time.Now().UTC()) {
-	userEvents, ok := sem.eventMap[uid]
+		userEvents, ok := sem.eventMap[uid]
 		if ok {
 			for _, v := range userEvents {
 				if !v.Event.Scheduled.Before(*start) && !v.Event.Scheduled.After(*end) {
@@ -162,7 +162,7 @@ func (sem *SecureEventsMap) GetPeriodEvents(uid uint, start, end *time.Time) []m
 				}
 			}
 		} else {
-		return nil
+			return nil
 		}
 	}
 
