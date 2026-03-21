@@ -13,7 +13,7 @@ type eventRepository interface {
 	CreateEvent(event model.Event)
 	UpdateEvent(uid uint, event model.Event) *model.Event
 	DeleteEvent(uid uint, eid string) bool
-	GetPeriodEvents(uid uint, start, end *time.Time) []model.Event
+	GetPeriodEvents(uid uint, start, end time.Time) []model.Event
 }
 
 type EventService struct {
@@ -101,7 +101,7 @@ func (es *EventService) getEvents(uid uint, start *time.Time, addDays, addMonths
 
 	endDate := start.AddDate(0, addMonths, addDays).UTC()
 
-	result := es.er.GetPeriodEvents(uid, start, &endDate)
+	result := es.er.GetPeriodEvents(uid, *start, endDate)
 
 	if result == nil {
 		return nil, model.ErrUserIDNotFound

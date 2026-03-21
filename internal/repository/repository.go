@@ -147,7 +147,7 @@ func (sem *SecureEventsMap) DeleteEvent(uid uint, eid string) bool {
 	return false
 }
 
-func (sem *SecureEventsMap) GetPeriodEvents(uid uint, start, end *time.Time) []model.Event {
+func (sem *SecureEventsMap) GetPeriodEvents(uid uint, start, end time.Time) []model.Event {
 	sem.mu.RLock()
 	defer sem.mu.RUnlock()
 	result := []model.Event{}
@@ -157,7 +157,7 @@ func (sem *SecureEventsMap) GetPeriodEvents(uid uint, start, end *time.Time) []m
 		userEvents, ok := sem.eventMap[uid]
 		if ok {
 			for _, v := range userEvents {
-				if !v.Event.Scheduled.Before(*start) && !v.Event.Scheduled.After(*end) {
+				if !v.Event.Scheduled.Before(start) && !v.Event.Scheduled.After(end) && uid == v.Event.UID {
 					result = append(result, *v.Event)
 				}
 			}
@@ -171,7 +171,7 @@ func (sem *SecureEventsMap) GetPeriodEvents(uid uint, start, end *time.Time) []m
 		userArchive, ok := sem.archive[uid]
 		if ok {
 			for _, v := range userArchive {
-				if !v.Scheduled.Before(*start) && !v.Scheduled.After(*end) {
+				if !v.Scheduled.Before(start) && !v.Scheduled.After(end) && uid == v.UID {
 					result = append(result, v)
 				}
 			}
