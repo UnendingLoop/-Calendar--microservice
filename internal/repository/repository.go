@@ -49,11 +49,13 @@ func (sem *SecureEventsMap) CreateEvent(event model.Event) {
 		Event: &event,
 	}
 	// кладем новый ивент в кучу
-	sem.eh.Push(newHeapEntity)
+	heap.Push(&sem.eh, newHeapEntity)
+
 	// кладем в мапу
-	sem.eventMap[event.UID] = append(sem.eventMap[event.UID], newHeapEntity)
+	sem.eventMap[event.UID] = append(sem.eventMap[event.UID], *newHeapEntity)
+
 	// проверяем, надо ли будить горутину-слушатель для пересчета времени
-	if sem.eh[0].Event.Scheduled.After(event.Scheduled.Time) || event.Scheduled.Before(time.Now().UTC()) {
+	if sem.eh[0].Event.EID == event.EID {
 		select {
 		case sem.updateCh <- struct{}{}:
 		default:
