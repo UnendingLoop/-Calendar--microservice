@@ -27,10 +27,6 @@ type mockRep struct {
 	popNearestEvent            *model.Event
 	popNearestEventErr         error
 	popNearestEventCallCounter int32
-
-	// Control behavior with counter
-	popCounterThreshold int32 // threshold for returning error
-	popCounter          int32
 }
 
 func (mr *mockRep) GetNextEventTime() (time.Time, error) {

@@ -208,8 +208,12 @@ func TestLogCollector(t *testing.T) {
 
 			defer func() {
 				os.Stdout = saveStdout
-				read.Close()
-				write.Close()
+				if err := read.Close(); err != nil {
+					t.Logf("Failed to close 'read': err")
+				}
+				if err := write.Close(); err != nil {
+					t.Logf("Failed to close 'write': err")
+				}
 			}()
 
 			// Setup logger
@@ -244,7 +248,9 @@ func TestLogCollector(t *testing.T) {
 			}
 
 			// Restore stdout and read output
-			write.Close()
+			if err := write.Close(); err != nil {
+				t.Logf("Failed to close 'write': err")
+			}
 			output, _ := io.ReadAll(read)
 			outputStr := string(output)
 
@@ -256,7 +262,12 @@ func TestLogCollector(t *testing.T) {
 				require.NotNil(t, fileInfo)
 
 				// Clean up test file
-				defer os.Remove(expectedFilename)
+				defer func() {
+					if err := os.Remove(expectedFilename); err != nil {
+						t.Logf("Failed to remove test-file: %v", err)
+					}
+				}()
+
 			}
 
 			// For stdout output, verify content
@@ -273,11 +284,11 @@ func TestLogCollector(t *testing.T) {
 
 func TestLogCollectorChannelBehavior(t *testing.T) {
 	testCases := []struct {
-		caseName           string
-		entriesCount       int
-		closeChannelAfter  bool
-		expectedExitClean  bool
-		maxRunDuration     time.Duration
+		caseName          string
+		entriesCount      int
+		closeChannelAfter bool
+		expectedExitClean bool
+		maxRunDuration    time.Duration
 	}{
 		{
 			caseName:          "channel closed immediately",
@@ -319,8 +330,12 @@ func TestLogCollectorChannelBehavior(t *testing.T) {
 
 			defer func() {
 				os.Stdout = saveStdout
-				read.Close()
-				write.Close()
+				if err := read.Close(); err != nil {
+					t.Logf("Failed to close 'read': err")
+				}
+				if err := write.Close(); err != nil {
+					t.Logf("Failed to close 'write': err")
+				}
 			}()
 
 			wg := &sync.WaitGroup{}
@@ -364,8 +379,12 @@ func TestLogCollectorChannelBehavior(t *testing.T) {
 			}
 
 			// Restore stdout
-			write.Close()
-			io.ReadAll(read)
+			if err := write.Close(); err != nil {
+				t.Logf("Failed to close 'write': err")
+			}
+			if _, err := io.ReadAll(read); err != nil {
+				t.Logf("Failed to ReadAll 'read': %v", err)
+			}
 		})
 	}
 }
@@ -432,8 +451,12 @@ func TestLogCollectorFormatOutput(t *testing.T) {
 
 			defer func() {
 				os.Stdout = saveStdout
-				read.Close()
-				write.Close()
+				if err := read.Close(); err != nil {
+					t.Logf("Failed to close 'read': err")
+				}
+				if err := write.Close(); err != nil {
+					t.Logf("Failed to close 'write': err")
+				}
 			}()
 
 			wg := &sync.WaitGroup{}
@@ -460,7 +483,9 @@ func TestLogCollectorFormatOutput(t *testing.T) {
 			}
 
 			// Check output
-			write.Close()
+			if err := write.Close(); err != nil {
+				t.Logf("Failed to close 'write': err")
+			}
 			output, _ := io.ReadAll(read)
 			outputStr := string(output)
 

@@ -63,7 +63,11 @@ func loadEventsFromFile(filename string) (map[uint][]model.HeapEntity, error) {
 		}
 		return make(map[uint][]model.HeapEntity), err
 	}
-	defer file.Close()
+	defer func() {
+		if err := file.Close(); err != nil {
+			log.Printf("Failed to close file %q after loading events from it: %v", filename, err)
+		}
+	}()
 
 	data := map[uint][]model.HeapEntity{}
 	if err := json.NewDecoder(file).Decode(&data); err != nil {
@@ -81,7 +85,11 @@ func loadArchiveFromFile(filename string) (map[uint][]model.Event, error) {
 		}
 		return make(map[uint][]model.Event), err
 	}
-	defer file.Close()
+	defer func() {
+		if err := file.Close(); err != nil {
+			log.Printf("Failed to close file %q after loading archive from it: %v", filename, err)
+		}
+	}()
 
 	data := map[uint][]model.Event{}
 	if err := json.NewDecoder(file).Decode(&data); err != nil {
@@ -100,7 +108,11 @@ func saveEventsToFile[T map[uint][]model.Event | map[uint][]model.HeapEntity](fi
 	if err != nil {
 		return err
 	}
-	defer file.Close()
+	defer func() {
+		if err := file.Close(); err != nil {
+			log.Printf("Failed to close file %q after saving data in it: %v", filename, err)
+		}
+	}()
 
 	encoder := json.NewEncoder(file)
 	encoder.SetIndent("", "  ")

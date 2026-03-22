@@ -36,12 +36,23 @@ func LogCollector(wg *sync.WaitGroup, logMode string, ch <-chan *EventEntry) {
 		for logEntry := range ch {
 			switch logEntry.Level {
 			case "INFO", "info", "Info":
-				fmt.Fprintln(out, logEntry.TimeStamp, "\n", logEntry.Level, "\n", logEntry.Fields, "\n", logEntry.Msg)
+				_, err := fmt.Fprintln(out, logEntry.TimeStamp, "\n", logEntry.Level, "\n", logEntry.Fields, "\n", logEntry.Msg)
+				if err != nil {
+					log.Printf("Failed to send log to output %q(file?): %v", logMode, err)
+					log.Println(logEntry.TimeStamp, "\n", logEntry.Level, "\n", logEntry.Fields, "\n", logEntry.Msg)
+				}
 			case "ERROR", "error", "Error":
-				fmt.Fprintln(out, logEntry.TimeStamp, "\n", logEntry.Level, "\n", logEntry.Fields, "\n", logEntry.Msg, ": ", logEntry.Err.Error()+"\n")
+				_, err := fmt.Fprintln(out, logEntry.TimeStamp, "\n", logEntry.Level, "\n", logEntry.Fields, "\n", logEntry.Msg, ": ", logEntry.Err.Error()+"\n")
+				if err != nil {
+					log.Printf("Failed to send log to output %q(file?): %v", logMode, err)
+					log.Println(logEntry.TimeStamp, "\n", logEntry.Level, "\n", logEntry.Fields, "\n", logEntry.Msg, ": ", logEntry.Err.Error()+"\n")
+				}
 			default:
-				fmt.Fprintln(out, logEntry.TimeStamp, "\n", logEntry.Fields, "\n", logEntry.Level, " - UNKNOWN LOGENTRY!", "\n", logEntry.Msg, ": ", logEntry.Err)
-
+				_, err := fmt.Fprintln(out, logEntry.TimeStamp, "\n", logEntry.Fields, "\n", logEntry.Level, " - UNKNOWN LOGENTRY!", "\n", logEntry.Msg, ": ", logEntry.Err)
+				if err != nil {
+					log.Printf("Failed to send log to output %q(file?): %v", logMode, err)
+					log.Println(logEntry.TimeStamp, "\n", logEntry.Fields, "\n", logEntry.Level, " - UNKNOWN LOGENTRY!", "\n", logEntry.Msg, ": ", logEntry.Err)
+				}
 			}
 		}
 		log.Println("Log channel closed. Exiting LogCollector")

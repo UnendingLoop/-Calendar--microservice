@@ -72,7 +72,11 @@ func TestLogCollector(t *testing.T) {
 					if err != nil {
 						t.Errorf("Failed to open file %s: %v", filename, err)
 					} else {
-						defer file.Close()
+						defer func() {
+							if err := file.Close(); err != nil {
+								t.Logf("Failed to close file %q: %v", filename, err)
+							}
+						}()
 						content, err := io.ReadAll(file)
 						if err != nil {
 							t.Errorf("Failed to read file %s: %v", filename, err)
@@ -83,7 +87,9 @@ func TestLogCollector(t *testing.T) {
 						}
 					}
 					// Удаляем файл после теста
-					os.Remove(filename)
+					if err := os.Remove(filename); err != nil {
+						t.Logf("Failed to remove test-file: %v", err)
+					}
 				}
 			}
 		})

@@ -6,7 +6,9 @@ import (
 	"time"
 )
 
-var LoggerCtxName = "logger"
+type logCtxName string
+
+var LoggerCtxName = logCtxName("logger")
 
 type CustomTime struct {
 	time.Time
