@@ -47,19 +47,18 @@ func (es *EventService) UpdateEvent(updatedEvent model.Event) (*model.Event, err
 	switch {
 	case updatedEvent.UID == 0:
 		return nil, model.ErrUserIDNotSpecified
-	case updatedEvent.EID == "":
+	case updatedEvent.EID == "": //можно добавить валидацию UUID-формата
 		return nil, model.ErrEventIDNotSpecified
 	case updatedEvent.Scheduled == nil && updatedEvent.Description == "":
 		return nil, model.ErrNothingToUpdate
 	case updatedEvent.Scheduled != nil && updatedEvent.Scheduled.Before(time.Now().UTC()):
 		return nil, model.ErrEventTimePast
 	default:
-		updatedEvent.Updated = time.Now().UTC()
-		updatedEvent := es.er.UpdateEvent(updatedEvent.UID, updatedEvent)
-		if updatedEvent == nil {
+		result := es.er.UpdateEvent(updatedEvent.UID, updatedEvent)
+		if result == nil {
 			return nil, model.ErrEventNotFound
 		}
-		return updatedEvent, nil
+		return result, nil
 	}
 }
 
@@ -67,7 +66,7 @@ func (es *EventService) DeleteEvent(eid string, uid uint) error {
 	switch {
 	case uid == 0 && eid == "":
 		return model.ErrNothingToDelete
-	case eid == "":
+	case eid == "": //+валидация по UUID-формату
 		return model.ErrEventIDNotSpecified
 	case uid == 0:
 		return model.ErrUserIDNotSpecified
