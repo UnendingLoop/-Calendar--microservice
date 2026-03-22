@@ -33,7 +33,7 @@ func (es *EventService) CreateEvent(newEvent model.Event) (*model.Event, error) 
 	case newEvent.Scheduled == nil, newEvent.Scheduled.Before(time.Now().UTC()):
 		return nil, model.ErrIncorrectDate
 	case newEvent.Description == "":
-		return nil, model.ErrEventNotSpecified
+		return nil, model.ErrEventDescrEmpty
 	}
 
 	newEvent.EID = uuid.New().String()

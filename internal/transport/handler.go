@@ -180,7 +180,6 @@ func getErrorCode(e error) int {
 		errors.Is(e, model.ErrEventIDNotSpecified),
 		errors.Is(e, model.ErrNothingToDelete),
 		errors.Is(e, model.ErrIncorrectDate),
-		errors.Is(e, model.ErrEventNotSpecified),
 		errors.Is(e, model.ErrNothingToUpdate),
 		errors.Is(e, model.ErrNothingToCreate),
 		errors.Is(e, model.ErrEventTimePast),
