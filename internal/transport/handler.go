@@ -166,10 +166,12 @@ func getUserIDandDate(c *ginext.Context) (int, *time.Time, error) {
 		return 0, nil, errors.New("empty date")
 	}
 
-	startDate, err := time.Parse("2006-01-02", rawDate)
+	loc := time.Local
+	startDate, err := time.ParseInLocation("2006-01-02", rawDate, loc)
 	if err != nil {
 		return 0, nil, fmt.Errorf("date parse error: %v", err)
 	}
+	startDate = startDate.UTC()
 
 	return id, &startDate, nil
 }

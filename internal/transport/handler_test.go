@@ -450,7 +450,7 @@ func TestGetUserIDAndDate(t *testing.T) {
 			name:           "valid user_id and date",
 			queryParams:    "user_id=123&date=2026-03-18",
 			expectedUserID: 123,
-			expectedDate:   ptrTime(time.Date(2026, 3, 18, 0, 0, 0, 0, time.UTC)),
+			expectedDate:   ptrTime(time.Date(2026, 3, 18, 0, 0, 0, 0, time.Local)),
 			shouldError:    false,
 		},
 		{
@@ -493,14 +493,14 @@ func TestGetUserIDAndDate(t *testing.T) {
 			name:           "large valid user_id",
 			queryParams:    "user_id=999999&date=2026-12-31",
 			expectedUserID: 999999,
-			expectedDate:   ptrTime(time.Date(2026, 12, 31, 0, 0, 0, 0, time.UTC)),
+			expectedDate:   ptrTime(time.Date(2026, 12, 31, 0, 0, 0, 0, time.Local)),
 			shouldError:    false,
 		},
 		{
 			name:           "user_id with leading zeros",
 			queryParams:    "user_id=00123&date=2026-01-01",
 			expectedUserID: 123,
-			expectedDate:   ptrTime(time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)),
+			expectedDate:   ptrTime(time.Date(2026, 1, 1, 0, 0, 0, 0, time.Local)),
 			shouldError:    false,
 		},
 	}
